@@ -37,31 +37,36 @@ run_controller() {
 echo "Writing sweep artifacts under ${OUT_ROOT}"
 echo "Python: ${PYTHON_BIN}"
 echo "Steps: ${STEPS}"
-echo "Seeds: ${SEEDS[*]}"
+echo "Seeds: ${SEEDS[*]-}"
 
 echo
 echo "== Seed sweep: full suite + anchored controller =="
 mkdir -p "${OUT_ROOT}/seed"
+set +u
 for seed in "${SEEDS[@]}"; do
   run_sequence "${OUT_ROOT}/seed/sequence_seed_${seed}.json" \
     --seed "${seed}"
   run_controller "${OUT_ROOT}/seed/controller_anchor_seed_${seed}.json" \
     --seed "${seed}" --anchor 1.0
 done
+set -u
 
 echo
 echo "== K sweep: full suite over n_components =="
 mkdir -p "${OUT_ROOT}/k"
+set +u
 for k in "${K_VALUES[@]}"; do
   for seed in "${SEEDS[@]}"; do
     run_sequence "${OUT_ROOT}/k/sequence_k_${k}_seed_${seed}.json" \
       --seed "${seed}" --n-components "${k}"
   done
 done
+set -u
 
 echo
 echo "== Ortho sweep: controller only =="
 mkdir -p "${OUT_ROOT}/ortho"
+set +u
 for ortho in "${ORTHO_VALUES[@]}"; do
   tag="${ortho//./p}"
   for seed in "${SEEDS[@]}"; do
@@ -69,20 +74,24 @@ for ortho in "${ORTHO_VALUES[@]}"; do
       --seed "${seed}" --ortho "${ortho}"
   done
 done
+set -u
 
 echo
 echo "== No-gates ablation: controller only =="
 mkdir -p "${OUT_ROOT}/no_gates"
+set +u
 for seed in "${SEEDS[@]}"; do
   run_controller "${OUT_ROOT}/no_gates/controller_no_gates_seed_${seed}.json" \
     --seed "${seed}" --no-gates
   run_controller "${OUT_ROOT}/no_gates/controller_anchor_no_gates_seed_${seed}.json" \
     --seed "${seed}" --anchor 1.0 --no-gates
 done
+set -u
 
 echo
 echo "== Task-count sweep: full suite =="
 mkdir -p "${OUT_ROOT}/task_count"
+set +u
 for n_tasks in "${TASK_COUNTS[@]}"; do
   facts_per_task=4
   if [[ "${n_tasks}" -gt 4 ]]; then
@@ -93,6 +102,7 @@ for n_tasks in "${TASK_COUNTS[@]}"; do
       --seed "${seed}" --n-tasks "${n_tasks}" --facts-per-task "${facts_per_task}"
   done
 done
+set -u
 
 echo
 echo "Done. Aggregate with scripts/summarize_sweeps.py or the narrower seed-only summarizer."
