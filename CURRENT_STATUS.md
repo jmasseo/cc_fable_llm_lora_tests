@@ -59,8 +59,9 @@ Interpretation (toy scale — do not over-read):
    trained phrasing and do not transfer to an unseen template. Low-dim
    updates at this scale are surface-level, not semantic.
 
-## New, implemented but NOT yet run (2026-07-13, written on a no-GPU/no-torch
-## dev machine — syntax-checked only, needs verification on the CUDA box/Colab)
+## Retention grid: mechanisms + results (implemented 2026-07-13, run
+## 2026-07-14 on Colab, RTX 6000 Blackwell; artifacts under
+## artifacts/sweeps/retention/, aggregated in artifacts/retention_summary.md)
 
 Multi-seed runs and the k/ortho/gates/task-count sweeps are done; they showed
 k, gating, and ortho-penalty strength don't move the needle. Two retention
@@ -77,21 +78,59 @@ mechanisms were added before scaling the model:
    earlier task out of ~96). Supersedes the soft cosine² penalty. Exact with
    `--no-gates`; approximate when the new task's own gates are trained.
 
+### Results (composed controller, 10 seeds, all arms --no-gates)
+
+| arm | final acc | retention | order sens | rev gap | collateral |
+|---|---|---|---|---|---|
+| baseline (retention_ctrl) | .58 ± .09 | .36 ± .14 | .58 | .05 | .68 |
+| hard_ortho | .54 ± .07 | .31 ± .11 | .62 | .03 | .64 |
+| **replay=1** | **1.00 ± .00** | **1.00 ± .00** | **.00** | .05 | **.89** |
+| replay=1 + hard_ortho | .98 ± .05 | .98 ± .08 | .02 | .05 | .88 |
+
+Routed accuracy unaffected in all arms (0.98–1.0).
+
+Interpretation:
+
+7. **Replay fixes composed-sum forgetting completely** at this scale:
+   retention 0.36 → 1.00 with zero seed variance, order sensitivity
+   0.58 → 0.00, no cost to current-task fit or routing. Notably, the repair
+   is expressed through only the *new* task's ~96 trainable coefficients —
+   the composed function is repaired from inside a tiny frozen random basis.
+8. **Coefficient-space orthogonality is a dead end.** Exact hard projection
+   moves nothing (all deltas within noise), alone or on top of replay —
+   consistent with the earlier soft-penalty sweeps. The interference is not
+   in coefficient geometry; it lives in function space, which replay
+   attacks directly. Hypothesis "isolated subspaces enable interference-free
+   composition" is falsified at this scale (soft AND hard variants).
+9. **Replay's cost is surgical reversibility**: collateral 0.68 → 0.89.
+   Replay-fitted vectors are co-adapted — task N's coefficients encode
+   "task N + repairs for the composed state," so exact negation of one
+   vector no longer cleanly removes just that task. The exact-arithmetic
+   add/remove property (the original selling point of linear composition)
+   is traded for retention. Note collateral was already poor (0.68) at
+   baseline, so what was sacrificed was mostly already broken.
+
 Touched: `config.py`, `train.py` (`fit_task_coefficients`), `experiments.py`
 (`run_controller` passes `replay_tasks`), `run_controller.py`,
 `evaluate_sequence.py`, `run_retention.sh/.ps1`, `summarize_sweeps.py`,
 `tests/test_retention.py`.
 
-## Suggested first commands on the GPU box / Colab
+## Open questions raised by the retention grid
 
-```
-python -m pytest tests -q                 # includes new test_retention.py
-python scripts/smoke_test.py              # regression check
-python scripts/run_controller.py --steps 200 --replay 1.0 --hard-ortho \
-    --out artifacts/controller_retention_probe.json   # single probe run
-bash scripts/run_retention.sh             # full 2x2 grid x 10 seeds
-python scripts/summarize_sweeps.py --stdout
-```
+- **Is replay's win trivial?** Rehearsal is the oldest fix in continual
+  learning; "replay prevents forgetting" is expected. The non-trivial parts
+  here are (a) the repair fits in ~96 dims of a frozen random basis, and
+  (b) the reversibility price is exactly measurable because composition is
+  linear. Controls worth running: replay with a *fraction* of earlier
+  examples (does tiny replay suffice?); joint fitting of all tasks at once
+  (upper bound — does sequential+replay match it?).
+- **Does the repair capacity survive more tasks?** With T tasks the newest
+  vector must repair T-1 earlier tasks. Task-count sweep with replay=1 is
+  the natural next grid (`--n-tasks`, mind the 18-nonce-word cap).
+- **Can reversibility be bought back?** E.g. decompose each task's vector
+  into a pure part (fit independently) + an explicit interaction-repair
+  part (fit with replay), so removal deletes pure+repair terms together
+  and bookkeeping stays exact.
 
 ## Older next steps still open
 
@@ -99,4 +138,6 @@ python scripts/summarize_sweeps.py --stdout
 - End-to-end controller training (current pipeline distills independently
   fitted coefficients into the MLP; the distillation bottleneck may hide
   whether routing generalizes).
-- Scale model (gpt2 → TinyLlama) and task count — AFTER the retention grid.
+- Scale model (gpt2 → TinyLlama) and task count — retention grid is done;
+  scaling is now unblocked, with replay=1 (no hard-ortho) as the default
+  retention mechanism.
