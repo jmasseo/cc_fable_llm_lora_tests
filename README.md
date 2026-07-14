@@ -58,7 +58,7 @@ python scripts/evaluate_sequence.py  # everything (slowest)
 Each script has `--help`; results are saved as JSON under `artifacts/`.
 
 No GPU locally? Open
-[`colab_quickstart.ipynb`](https://colab.research.google.com/github/jmasseo/cc_fable_llm_lora_tests/blob/master/colab_quickstart.ipynb)
+[`colab_quickstart.ipynb`](https://colab.research.google.com/github/scottvr/sad-repo/blob/master/colab_quickstart.ipynb)
 in Colab (Runtime → GPU) — it clones the repo, runs tests + smoke test +
 the retention grid, and downloads the artifacts before the VM evaporates.
 

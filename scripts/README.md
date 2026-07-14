@@ -179,14 +179,14 @@ Key comparisons:
 ## Colab Quickstart
 
 Use [`colab_quickstart.ipynb`](../colab_quickstart.ipynb) at the repo root
-(open via `https://colab.research.google.com/github/jmasseo/cc_fable_llm_lora_tests/blob/master/colab_quickstart.ipynb`).
+(open via `https://colab.research.google.com/github/scottvr/sad-repo/blob/master/colab_quickstart.ipynb`).
 It includes a GPU sanity check, clone/install, tests, smoke test, a pilot
 retention grid, inline summary rendering, and artifact download/Drive
 persistence (Colab storage is ephemeral). The equivalent shell commands:
 
 ```python
-!git clone https://github.com/jmasseo/cc_fable_llm_lora_tests
-%cd cc_fable_llm_lora_tests
+!git clone https://github.com/scottvr/sad-repo
+%cd sad-repo
 !pip install -q transformers  # torch is preinstalled on Colab
 !python -m pytest tests -q
 !python scripts/smoke_test.py
