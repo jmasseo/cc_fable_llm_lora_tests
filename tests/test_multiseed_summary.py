@@ -152,5 +152,5 @@ def test_sweep_summary_uses_config_for_condition_labels(tmp_path):
     samples = mod.collect_samples([path])
     summary, _ = mod.summarize(samples)
 
-    assert summary["k=16|controller"]["final_acc_avg"]["mean"] == 0.75
-    assert summary["k=16|controller_routed"]["final_acc_avg"]["mean"] == 1.0
+    assert summary["k=16;controller"]["final_acc_avg"]["mean"] == 0.75
+    assert summary["k=16;controller_routed"]["final_acc_avg"]["mean"] == 1.0
