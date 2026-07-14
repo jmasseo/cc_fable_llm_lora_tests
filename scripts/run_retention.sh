@@ -11,6 +11,7 @@ set -euo pipefail
 PYTHON_BIN="${PYTHON:-python3}"
 OUT_ROOT="${OUT_ROOT:-artifacts/sweeps/retention}"
 STEPS="${STEPS:-200}"
+MODEL="${MODEL:-distilgpt2}"   # HF name or local path (from_pretrained takes both)
 SEEDS=(${SEEDS:-0 1 2 3 4 5 6 7 8 9})
 REPLAY_VALUES=(${REPLAY_VALUES:-0 1.0})
 
@@ -18,6 +19,7 @@ mkdir -p "${OUT_ROOT}"
 
 echo "Writing retention-grid artifacts under ${OUT_ROOT}"
 echo "Python: ${PYTHON_BIN}"
+echo "Model: ${MODEL}"
 echo "Steps: ${STEPS}"
 echo "Seeds: ${SEEDS[*]-}"
 echo "Replay weights: ${REPLAY_VALUES[*]-}"
@@ -29,9 +31,11 @@ for seed in "${SEEDS[@]}"; do
     # Whole grid runs --no-gates: gates were inert in earlier sweeps and
     # hard projection is only exact without them (single-variable arms).
     "${PYTHON_BIN}" scripts/run_controller.py \
+      --model "${MODEL}" \
       --steps "${STEPS}" --seed "${seed}" --replay "${replay}" --no-gates \
       --out "${OUT_ROOT}/controller_replay_${rtag}_seed_${seed}.json"
     "${PYTHON_BIN}" scripts/run_controller.py \
+      --model "${MODEL}" \
       --steps "${STEPS}" --seed "${seed}" --replay "${replay}" --no-gates \
       --hard-ortho \
       --out "${OUT_ROOT}/controller_replay_${rtag}_hard_seed_${seed}.json"

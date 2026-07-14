@@ -10,6 +10,7 @@ param(
     [int[]]$Seeds = @(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
     [double[]]$ReplayValues = @(0, 1.0),
     [int]$Steps = 200,
+    [string]$Model = "distilgpt2",  # HF name or local path
     [string]$OutRoot = "artifacts/sweeps/retention"
 )
 
@@ -30,10 +31,12 @@ foreach ($seed in $Seeds) {
         # Whole grid runs --no-gates: gates were inert in earlier sweeps and
         # hard projection is only exact without them (single-variable arms).
         & $PythonBin scripts/run_controller.py `
+            --model $Model `
             --steps $Steps --seed $seed --replay $replay --no-gates `
             --out "$OutRoot/controller_replay_${rtag}_seed_${seed}.json"
         if ($LASTEXITCODE -ne 0) { throw "run_controller.py failed (seed=$seed replay=$replay)" }
         & $PythonBin scripts/run_controller.py `
+            --model $Model `
             --steps $Steps --seed $seed --replay $replay --no-gates --hard-ortho `
             --out "$OutRoot/controller_replay_${rtag}_hard_seed_${seed}.json"
         if ($LASTEXITCODE -ne 0) { throw "run_controller.py failed (seed=$seed replay=$replay hard)" }
