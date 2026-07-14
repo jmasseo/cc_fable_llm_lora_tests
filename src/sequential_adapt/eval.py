@@ -20,7 +20,8 @@ def evaluate_task(model, tokenizer, task, cfg, template_idx=None):
     pairs = task_prompts(task, t_idx)
     label_ids = list(check_single_token_labels(tokenizer, cfg.label_space).values())
     prompts = [p for p, _ in pairs]
-    gold = torch.tensor([tokenizer.encode(a)[0] for _, a in pairs])
+    gold = torch.tensor([tokenizer.encode(a, add_special_tokens=False)[0]
+                         for _, a in pairs])
     logits = batch_forward_logits(model, tokenizer, prompts, cfg.device).cpu()
     loss = F.cross_entropy(logits, gold).item()
     restricted = logits[:, label_ids]
@@ -75,7 +76,8 @@ def coherence_probe(model, tokenizer, tasks, cfg):
                 if d != f.domain:
                     fake = type(f)(domain=d, word=f.word, label=f.label)
                     leak_prompts.append(fact_prompt(fake, 0))
-                    leak_gold.append(tokenizer.encode(f.label)[0])
+                    leak_gold.append(tokenizer.encode(
+                        f.label, add_special_tokens=False)[0])
     if leak_prompts:
         preds = restricted_preds(leak_prompts)
         leakage = (preds == torch.tensor(leak_gold)).float().mean().item()

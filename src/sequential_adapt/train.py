@@ -12,7 +12,8 @@ from .data import NEUTRAL_PROBES, task_prompts
 def build_batch(tokenizer, pairs, device="cpu"):
     """pairs: list of (prompt, answer_label). Returns (enc, gold_ids)."""
     prompts = [p for p, _ in pairs]
-    gold = torch.tensor([tokenizer.encode(a)[0] for _, a in pairs], device=device)
+    gold = torch.tensor([tokenizer.encode(a, add_special_tokens=False)[0]
+                         for _, a in pairs], device=device)
     enc = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
     return enc, gold
 

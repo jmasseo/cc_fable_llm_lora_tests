@@ -166,7 +166,9 @@ def check_single_token_labels(tokenizer, label_space):
     """Every label must encode to exactly one token; returns label -> token id."""
     out = {}
     for label in label_space:
-        ids = tokenizer.encode(label)
+        # No special tokens: Llama-family tokenizers prepend BOS, which
+        # would make every label look multi-token (and [0] would be BOS).
+        ids = tokenizer.encode(label, add_special_tokens=False)
         if len(ids) != 1:
             raise ValueError(f"Label {label!r} is not a single token: {ids}")
         out[label] = ids[0]
