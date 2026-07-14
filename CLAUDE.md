@@ -21,12 +21,13 @@ python scripts/evaluate_sequence.py      # full one-seed comparison, all methods
 bash scripts/run_multiseed.sh            # 10-seed suite (PowerShell: run_multiseed.ps1)
 bash scripts/run_sweeps.sh               # k/ortho/gates/task-count sweeps (GPU machine)
 bash scripts/run_retention.sh            # replay x hard-ortho retention grid (GPU machine)
+bash scripts/run_pressure.sh             # replay stress tests: fraction/big-vocab/conflict/capacity (GPU machine)
 python scripts/summarize_multiseed.py --stdout
 python scripts/summarize_sweeps.py --stdout
 ```
 
 - Scripts import the package via `scripts/_bootstrap.py` (sys.path hack) — no install needed; run from repo root.
-- All Python runners take `--model --steps --seed --device --out`; ablation knobs: `--n-components/--k --rank --n-tasks --facts-per-task --ortho --hard-ortho --anchor --replay --no-gates`. Every script answers `--help`.
+- All Python runners take `--model --steps --seed --device --out`; ablation knobs: `--n-components/--k --rank --n-tasks --facts-per-task --overlap-words --wide-labels --ortho --hard-ortho --anchor --replay --replay-fraction --no-gates`. Every script answers `--help`.
 - All results are saved as JSON under `artifacts/` — new experiments must follow this convention.
 - Shell runners are parameterized by env vars (bash: `SEEDS="0 1" STEPS=100 bash scripts/run_sweeps.sh`) or params (PowerShell: `-Seeds @(0,1)`).
 - CPU and CUDA runs differ by ±1 probe item due to numerics; qualitative results are stable. Device auto-detects.
@@ -50,7 +51,7 @@ Sequential fitting (`train.py`): each new task's coefficients are optimized with
 
 `experiments.py` orchestrates the four compared methods: `independent` (upper bound), `naive_stack`, `coeff_add` (task-vector arithmetic), `controller` (proposed). Metric definitions (retention matrix, forgetting, order sensitivity, reversibility, drift KL, coherence) live in `metrics.py`; probes in `eval.py`. Central `Config` dataclass in `config.py`.
 
-Tasks (`data.py`) are synthetic nonce-word → color mappings in 3 domains, 3 templates per fact (2 trained, 1 held out for routing eval). The nonce-word pool has 18 words, which caps `n_tasks × facts_per_task`.
+Tasks (`data.py`) are synthetic nonce-word → color mappings in 3 domains, 3 templates per fact (2 trained, 1 held out for routing eval). The nonce pool starts with the original 18 hand-picked words (kept first so older runs reproduce exactly) and extends deterministically via a CVCV generator; `--wide-labels` switches to a 12-color answer set, and `--overlap-words N` makes the first N words of every domain shared with conflicting labels (adversarial for composed states).
 
 ## Findings so far (read before designing new experiments)
 
@@ -58,4 +59,5 @@ Tasks (`data.py`) are synthetic nonce-word → color mappings in 3 domains, 3 te
 - **Routing (selective application) is what works**: the MLP controller recovers full independent accuracy from held-out phrasings.
 - Sweeps showed k, gating, and ortho-penalty strength have little useful effect at this scale — don't re-tune them.
 - Drift anchoring (`--anchor 1.0`) cuts neutral-probe KL ~10× without hurting task fit, but does not fix composed-sum interference.
+- **Composed-state replay (`--replay 1.0`) fixed composed retention completely** (0.36 → 1.00 over 10 seeds) at no cost to current-task fit or routing; its price is surgical reversibility (vectors become co-adapted). Hard orthogonal projection was inert — coefficient-space orthogonality is a dead end at this scale. The replay result is **not yet pressure-tested** (cramming/ceiling/conflict controls: `run_pressure.sh`); don't build on it until that grid runs. Kill-criterion and rationale: `notes/roadmap_v0.2.md`.
 - Exact state, headline numbers, and next commands: `CURRENT_STATUS.md`. Protocol: `notes/experiment_plan.md`. Original brief: `INSTRUCTIONS.md`.

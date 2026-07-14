@@ -126,11 +126,63 @@ Touched: `config.py`, `train.py` (`fit_task_coefficients`), `experiments.py`
   (upper bound — does sequential+replay match it?).
 - **Does the repair capacity survive more tasks?** With T tasks the newest
   vector must repair T-1 earlier tasks. Task-count sweep with replay=1 is
-  the natural next grid (`--n-tasks`, mind the 18-nonce-word cap).
+  the natural next grid (the old 18-nonce-word cap is gone — see below).
 - **Can reversibility be bought back?** E.g. decompose each task's vector
   into a pure part (fit independently) + an explicit interaction-repair
   part (fit with replay), so removal deletes pure+repair terms together
-  and bookkeeping stays exact.
+  and bookkeeping stays exact. (That is the `reversible-composition`
+  branch's question; this branch is `replay-scaling`.)
+
+## Pressure grid: implemented, NOT yet run (2026-07-15, replay-scaling
+## branch, written on the no-torch dev machine — syntax-checked only)
+
+Everything needed to stress-test the replay result (rationale and
+kill-criterion: `notes/roadmap_v0.2.md`):
+
+1. **Cramming diagnostic** (automatic in every controller run): each
+   sequentially fitted vector is also evaluated ALONE; JSON field
+   `newest_alone_on_earlier`, summary column `cram (newest alone)`.
+   High = the newest vector re-learned earlier tasks (12 facts fit easily
+   in ~96 dims); low = genuine composition repair. **Read this column
+   before believing any retention number.**
+2. **`--replay-fraction F`**: deterministic per-task subsample of replay
+   examples (>= 1 per earlier task). Separates "a sliver of rehearsal
+   suffices" from "full joint training in disguise".
+3. **Bigger task family**: nonce pool now extends past 300 via a CVCV
+   generator (original 18 words kept first — historical task sets are
+   byte-identical); `--wide-labels` = 12 single-token colors;
+   `--overlap-words N` = shared words with conflicting labels across
+   domains (a composed state cannot satisfy them; routing should).
+4. **`scripts/run_pressure.sh` / `.ps1`**: 10 arms x 5 seeds (~50 runs,
+   ~20 min on a fast card) — frac 0.125/0.25/0.5, big family (8 facts x 12
+   labels) with replay on/off, conflict (overlap=2) with replay on/off,
+   capacity k=2/4/16 with replay. Artifacts: `artifacts/sweeps/pressure/`.
+
+### First commands on Colab / GPU box
+
+```
+python -m pytest tests -q                 # includes new data + diagnostic tests
+python scripts/run_controller.py --steps 200 --replay 1.0 --no-gates \
+    --out artifacts/pressure_probe.json   # single probe: check the cram column
+bash scripts/run_pressure.sh              # full pressure grid
+python scripts/summarize_sweeps.py --stdout
+```
+
+### How to read the outcome
+
+- `cram (newest alone)` HIGH (≈ earlier-task accuracy) in `replay=1` arms →
+  replay is cramming, not repair; the 1.00 retention headline deflates.
+- `frac=0.125` retention ≈ 1.0 → tiny rehearsal suffices (interesting);
+  only `frac=1` works → joint-training-in-disguise (expected/dull).
+- `big` arms: retention off ceiling; the replay-vs-baseline *gap* is the
+  real effect size.
+- `conflict` arms: composed accuracy on overlapped facts is capped by
+  construction (~(1 - overlap/facts) ceiling on the composed state);
+  routed accuracy should stay high. If composed retention still reads
+  ~1.0 here, be suspicious of the eval, not pleased.
+- `cap` arms: retention 1.0 at k=2 (24 dims) → repair is cheap, capacity
+  story weak; retention degrading with k → capacity relationship exists
+  (then find the scaling law before TinyLlama).
 
 ## Older next steps still open
 

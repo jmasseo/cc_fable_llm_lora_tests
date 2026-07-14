@@ -137,7 +137,9 @@ artifacts/sweeps_summary.csv
 ```
 
 Task-count sweeps use `facts_per_task=4` up to 4 tasks and `facts_per_task=3`
-above that, because the current nonce-word pool has 18 words.
+above that. (Historical note: the pool was capped at 18 hand-picked nonce
+words when those sweeps ran; a deterministic CVCV generator now extends it
+past 300, so larger families are available via `--n-tasks`/`--facts-per-task`.)
 
 ## Retention Grid
 
@@ -175,6 +177,51 @@ Key comparisons:
   collateral damage, and does it cost current-task accuracy?
 - Do the two combined interact (replay shapes coefficients inside the
   projected subspace)?
+
+Result (2026-07-14, 10 seeds): replay fixed composed retention completely
+(0.36 -> 1.00), hard projection was inert, and replay's cost is surgical
+reversibility. See `CURRENT_STATUS.md` — which is exactly why the next grid
+exists.
+
+## Pressure Grid
+
+Stress-tests the replay result before trusting it (reasoning in
+`notes/roadmap_v0.2.md`). Controller-only, `--no-gates`, 10 arms x 5 seeds:
+
+- `frac`: replay=1 with `--replay-fraction` 0.125/0.25/0.5 — does a sliver
+  of rehearsal repair composition, or only full joint training?
+- `big`: 3 tasks x 8 facts, `--wide-labels` (12 answers), replay on/off —
+  removes the ceiling that compressed the retention grid to 1.00.
+- `conflict`: `--overlap-words 2` — the same nonce words carry *different*
+  labels per domain; a single composed state cannot satisfy them all.
+- `cap`: k=2/4/16 with replay=1 — does composed-state repair need
+  coefficient capacity? (k=8 is covered by the retention grid.)
+
+Every controller run now also records the **cramming diagnostic**
+(`newest_alone_on_earlier`, summary column `cram (newest alone)`): the last
+task's vector evaluated *alone* on earlier tasks' probes. High = the newest
+vector re-learned everything (cramming); low = genuine composition repair.
+
+```bash
+PYTHON=.venv/bin/python bash scripts/run_pressure.sh
+python scripts/summarize_sweeps.py --stdout
+```
+
+```powershell
+$env:PYTHON = ".\.venv\Scripts\python.exe"
+.\scripts\run_pressure.ps1
+python scripts\summarize_sweeps.py --stdout
+```
+
+Pilot run:
+
+```bash
+SEEDS="0 1" bash scripts/run_pressure.sh
+```
+
+Outputs land under `artifacts/sweeps/pressure/` with condition labels
+inferred from config fields (`replay=1;frac=0.25`, `replay=1;overlap=2`,
+`replay=1;tasks=3x8;labels=12`, `replay=1;k=2`, ...).
 
 ## Colab Quickstart
 
